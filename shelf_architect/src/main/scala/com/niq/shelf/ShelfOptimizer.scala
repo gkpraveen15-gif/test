@@ -16,14 +16,24 @@ object ShelfOptimizer {
 
     val CLIENT_MANUFACTURER = "Brand_A"
 
-    println("==========================================================")
-    println(s"🚀 SHELF ARCHITECT PIPELINE (CLIENT: $CLIENT_MANUFACTURER)")
-    println("==========================================================")
+    println("\n====================================================================================================")
+    println(s"🌟 EXECUTIVE SUMMARY: SHELF ARCHITECT MARKET STUDY FOR $CLIENT_MANUFACTURER")
+    println("====================================================================================================")
+    println("▶ THE BUSINESS PROBLEM:")
+    println(s"  $CLIENT_MANUFACTURER needs to know which products are winning on the shelf and which are wasting space.")
+    println("  This application analyzes Point-of-Sale (POS) data across multiple markets to recommend exactly")
+    println("  which products to keep (CORE_PROTECT) and which to drop (DELIST_CANDIDATE) based on velocity.")
+    println("\n▶ PRIVACY COMPLIANCE:")
+    println("  Per retailer syndication agreements, all Competitor Private Label data will be securely masked")
+    println("  and aggregated before final delivery to the client.")
+    println("====================================================================================================\n")
 
     // ==========================================
     // 1. ADVANCED DIMENSIONS
     // ==========================================
-    println("\n[1/4] Building Dimensions (Product & Store)...")
+    println("▶ [PHASE 1] INGESTING MASTER DATA (PRODUCTS & STORES)...")
+    println("  - Mapping the product hierarchy (Department > Category > Sub-Category).")
+    println("  - Mapping Stores to their respective Markets (e.g., MKT_EAST, MKT_WEST).")
     val dimProduct = Seq(
       ("UPC_101", "Grocery", "Beverage", "Energy", "Brand_A", "Premium", "Sugar-Free"),
       ("UPC_102", "Grocery", "Beverage", "Energy", "Brand_B", "Mainstream", "Regular"),
@@ -40,7 +50,8 @@ object ShelfOptimizer {
     // ==========================================
     // 2. RAW FACT DATA
     // ==========================================
-    println("[2/4] Loading Transactional Fact Data...")
+    println("\n▶ [PHASE 2] INGESTING TRANSACTIONAL SALES DATA...")
+    println(s"  - Processing weekly register scans for $CLIENT_MANUFACTURER and competitors.")
     val factSales = Seq(
       // store_id, product_id, period_id, sales_units, sales_dollars
       ("STR_001", "UPC_101", "2023_W01", 100, 200.0),
@@ -50,7 +61,6 @@ object ShelfOptimizer {
       ("STR_002", "UPC_101", "2023_W01", 90, 180.0)
     ).toDF("store_id", "product_id", "period_id", "sales_units", "sales_dollars")
 
-    // Master join
     val masterDF = factSales
       .join(dimProduct, "product_id")
       .join(dimStore, "store_id")
@@ -58,9 +68,12 @@ object ShelfOptimizer {
     // ==========================================
     // 3. BUSINESS LOGIC: SLOW MOVER DETECTION
     // ==========================================
-    println("\n[3/4] Executing Assortment Algorithms...")
+    println("\n▶ [PHASE 3] EXECUTING ASSORTMENT INTELLIGENCE ALGORITHMS...")
+    println("  - Story: Not all products sell at the same speed. We are now ranking every product's velocity")
+    println("    (units sold) against other products in the *exact same Market, Period, and Sub-Category*.")
+    println("  - Insight: Products in the top 20% are flagged as CORE_PROTECT (Do not touch these!).")
+    println("    Products in the bottom 20% are flagged as DELIST_CANDIDATE (Remove these to free up shelf space).")
     
-    // Rank products within their Market, Period, and Sub-Category based on volume
     val categoryWindow = Window.partitionBy("market_id", "period_id", "sub_category").orderBy(desc("sales_units"))
     
     val assortmentScoringDF = masterDF
@@ -74,7 +87,10 @@ object ShelfOptimizer {
     // ==========================================
     // 4. DATA SECURITY: MASKING FOR CLIENT DELIVERY
     // ==========================================
-    println(s"\n[4/4] Applying Data Restrictions for Client Delivery ($CLIENT_MANUFACTURER)...")
+    println("\n▶ [PHASE 4] SECURING DATA FOR SYNDICATION DELIVERY...")
+    println("  - Story: Retailers demand strict confidentiality regarding their 'Store Brands' (Private Labels).")
+    println(s"  - Action: Scanning data for Private Label brands. Obfuscating UPCs and Characteristics so $CLIENT_MANUFACTURER")
+    println("    can see the total market volume, but cannot reverse-engineer the exact retailer strategies.")
     
     val clientFacingDF = assortmentScoringDF
       .withColumn("brand_name_masked",
@@ -90,7 +106,8 @@ object ShelfOptimizer {
         .otherwise($"characteristics")
       )
 
-    // Aggregate to the required Granularity: Market, Store, Product, Period
+    println("\n▶ [PHASE 5] GENERATING FINAL DATA MART...")
+    println("  - Setting final delivery granularity strictly to: [Market -> Store -> Product -> Period].")
     val finalClientDeliveryMart = clientFacingDF
       .groupBy(
         "market_id", "store_id", "product_id_masked", "period_id",
@@ -103,15 +120,17 @@ object ShelfOptimizer {
       )
       .orderBy(col("market_id"), col("store_id"), col("period_id"), desc("total_dollars"))
 
-    println(s"🔒 SECURE CLIENT DATA MART (Granularity: Market -> Store -> Product -> Period):")
+    println("\n====================================================================================================")
+    println(s"📊 FINAL CLIENT DATA MART (READY FOR $CLIENT_MANUFACTURER TO INGEST)")
+    println("====================================================================================================")
     finalClientDeliveryMart.select(
-      "market_id", "store_id", "product_id_masked", "period_id",
+      "market_id", "store_id", "period_id", "product_id_masked", 
       "brand_name_masked", "total_dollars", "assortment_action"
     ).show(truncate = false)
 
-    println("\n==========================================================")
-    println("✅ PIPELINE COMPLETE. READY FOR CLIENT INGESTION.")
-    println("==========================================================")
+    println("\n====================================================================================================")
+    println("✅ PIPELINE COMPLETE. THE DATA STORY HAS BEEN SUCCESSFULLY GENERATED AND SECURED.")
+    println("====================================================================================================\n")
 
     spark.stop()
   }
