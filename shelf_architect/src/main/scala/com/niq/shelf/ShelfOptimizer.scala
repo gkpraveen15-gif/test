@@ -107,7 +107,7 @@ object ShelfOptimizer {
         sum("sales_dollars").alias("total_dollars"),
         round(avg("ros_units_per_week"), 2).alias("avg_ros_per_week")
       )
-      .orderBy("sub_category", desc("total_dollars"))
+      .orderBy(col("sub_category"), desc("total_dollars"))
 
     println(s"🔒 SECURE CLIENT DATA MART (Delivered to $CLIENT_MANUFACTURER):")
     finalClientDeliveryMart.select(
