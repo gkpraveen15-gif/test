@@ -19,7 +19,7 @@ RUN mvn clean package
 # ==========================================
 # STAGE 2: Run the Pipeline in a Spark Container
 # ==========================================
-FROM bitnami/spark:3.3.0
+FROM bitnami/spark:latest
 
 WORKDIR /app
 
