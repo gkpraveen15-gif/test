@@ -19,15 +19,17 @@ RUN mvn clean package
 # ==========================================
 # STAGE 2: Run the Pipeline in a Spark Container
 # ==========================================
-FROM bitnami/spark:latest
+FROM apache/spark:3.5.9-scala2.12-java11-python3-r-ubuntu
 
+# Set working directory to the spark opt dir or just /app
 WORKDIR /app
 
 # Copy the compiled JAR from the builder stage
 COPY --from=builder /app/target/shelf-architect-1.0-SNAPSHOT.jar /app/shelf-architect.jar
 
-# Command to execute the Scala Spark job
-CMD ["spark-submit", \
+# Switch to root user temporarily if needed, but apache/spark defaults to a non-root 'spark' user.
+# The 'spark' user has access to /app since we COPY it here.
+CMD ["/opt/spark/bin/spark-submit", \
      "--class", "com.niq.shelf.ShelfOptimizer", \
      "--master", "local[*]", \
      "/app/shelf-architect.jar"]
