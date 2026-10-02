@@ -29,17 +29,17 @@ object StoreOpportunityFinder {
     // ==========================================
     println("▶ [PHASE 1] Loading Actual Sales (Ingesting output from the Shelf Optimizer)...")
     val actualSalesDF = Seq(
-      ("STR_001", "UPC_101", 2400.0), // Underperforming
-      ("STR_001", "UPC_102", 600.0),  // Overperforming
-      ("STR_002", "UPC_101", 3000.0), // On target
-      ("STR_003", "UPC_101", 500.0)   // Terrible performance
+      ("STR_001", "UPC_101 (Premium Energy)", 2400.0), 
+      ("STR_001", "UPC_102 (Comp Energy)", 600.0),  
+      ("STR_001", "UPC_201 (Organic Chips)", 15.0),    // Very slow mover
+      ("STR_002", "UPC_101 (Premium Energy)", 3000.0), 
+      ("STR_003", "UPC_101 (Premium Energy)", 500.0)   // Terrible performance
     ).toDF("store_id", "product_id_masked", "actual_dollars")
 
     // ==========================================
     // 2. INGEST STORE CLUSTER MASTER DATA
     // ==========================================
     println("▶ [PHASE 2] Loading Store Cluster Definitions...")
-    println("  - Defining clusters: Dynamic collections of stores based on demographics, NOT just geography.")
     val dimCluster = Seq(
       ("STR_001", "Urban_Flagship", "Focus_Cluster"),
       ("STR_002", "Urban_Flagship", "Focus_Cluster"),
@@ -51,10 +51,11 @@ object StoreOpportunityFinder {
     // ==========================================
     println("▶ [PHASE 3] Loading AI/ML Forecasted Sales Targets...")
     val forecastDF = Seq(
-      ("STR_001", "UPC_101", 3000.0), // Expected 3000, Actual 2400 -> 600 Gap
-      ("STR_001", "UPC_102", 500.0),  // Expected 500, Actual 600 -> Beating forecast!
-      ("STR_002", "UPC_101", 3000.0), // Expected 3000, Actual 3000 -> Perfect execution
-      ("STR_003", "UPC_101", 2000.0)  // Expected 2000, Actual 500 -> Massive 1500 Gap
+      ("STR_001", "UPC_101 (Premium Energy)", 3000.0), 
+      ("STR_001", "UPC_102 (Comp Energy)", 500.0),  
+      ("STR_001", "UPC_201 (Organic Chips)", 150.0),  
+      ("STR_002", "UPC_101 (Premium Energy)", 3000.0),
+      ("STR_003", "UPC_101 (Premium Energy)", 2000.0)  // Massive 1500 Gap
     ).toDF("store_id", "product_id_masked", "forecasted_dollars")
 
     // ==========================================
@@ -65,7 +66,6 @@ object StoreOpportunityFinder {
       .join(forecastDF, Seq("store_id", "product_id_masked"))
       .join(dimCluster, "store_id")
 
-    // Calculate Opportunity = Forecast - Actual. (If negative, we beat the forecast so Gap is 0)
     val oppGapDF = masterDF
       .withColumn("opportunity_gap_dollars", 
         when($"forecasted_dollars" > $"actual_dollars", $"forecasted_dollars" - $"actual_dollars")
@@ -104,8 +104,36 @@ object StoreOpportunityFinder {
       "actual_dollars", "forecasted_dollars", "opportunity_gap_dollars", "performance_status"
     ).orderBy(desc("opportunity_gap_dollars")).show(truncate = false)
 
+    // ==========================================
+    // 6. NATURAL LANGUAGE GENERATION (NLG) READOUT
+    // ==========================================
     println("\n====================================================================================================")
-    println("✅ STORE OPPORTUNITY PIPELINE COMPLETE.")
+    println("🤖 AI-GENERATED EXECUTIVE READOUT FOR BRAND_A")
+    println("====================================================================================================")
+    
+    // Dynamically calculate the worst execution miss using Spark Actions
+    val worstMiss = oppGapDF.orderBy(desc("opportunity_gap_dollars")).first()
+    val worstStore = worstMiss.getAs[String]("store_id")
+    val worstGap = worstMiss.getAs[Double]("opportunity_gap_dollars")
+    val worstUpc = worstMiss.getAs[String]("product_id_masked")
+    val worstCluster = worstMiss.getAs[String]("cluster_type")
+    
+    // Dynamically calculate the worst performing product overall
+    val worstProduct = actualSalesDF.groupBy("product_id_masked")
+      .agg(sum("actual_dollars").alias("total_sales"))
+      .orderBy(asc("total_sales")).first()
+    val dropUpc = worstProduct.getAs[String]("product_id_masked")
+    val dropSales = worstProduct.getAs[Double]("total_sales")
+
+    println(s"▶ 1. EXECUTION FAILURES IN COMPETITIVE CLUSTERS:")
+    println(s"   Our Store Opportunity algorithm caught a massive execution failure in the $worstCluster.")
+    println(s"   $worstStore was forecasted to sell highly, but missed the target for $worstUpc by $$${worstGap}.")
+    println(s"   ACTION: A $$${worstGap} gap indicates a severe out-of-stock or display issue. Dispatch a merchandiser immediately.")
+    
+    println(s"\n▶ 2. PORTFOLIO OPTIMIZATION:")
+    println(s"   While your core items are strong, $dropUpc is generating extremely low sales velocity (Only $$${dropSales} total).")
+    println(s"   ACTION: Mark $dropUpc as a DELIST_CANDIDATE. Voluntarily pull it during the next planogram reset")
+    println(s"   and negotiate to replace that empty shelf slot with a secondary facing of your high-performing $worstUpc.")
     println("====================================================================================================\n")
 
     spark.stop()
