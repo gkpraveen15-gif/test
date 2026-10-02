@@ -27,9 +27,7 @@ WORKDIR /app
 # Copy the compiled JAR from the builder stage
 COPY --from=builder /app/target/shelf-architect-1.0-SNAPSHOT.jar /app/shelf-architect.jar
 
-# Switch to root user temporarily if needed, but apache/spark defaults to a non-root 'spark' user.
-# The 'spark' user has access to /app since we COPY it here.
-CMD ["/opt/spark/bin/spark-submit", \
-     "--class", "com.niq.shelf.ShelfOptimizer", \
-     "--master", "local[*]", \
-     "/app/shelf-architect.jar"]
+# Command to execute both Scala Spark jobs sequentially
+CMD /opt/spark/bin/spark-submit --class com.niq.shelf.ShelfOptimizer --master local[*] /app/shelf-architect.jar && \
+    echo -e "\n\n**************************************************************\n\n" && \
+    /opt/spark/bin/spark-submit --class com.niq.shelf.StoreOpportunityFinder --master local[*] /app/shelf-architect.jar
