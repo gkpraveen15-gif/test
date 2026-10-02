@@ -5,7 +5,7 @@ name: Scala Spark Pipeline (Shelf Architect)
 on:
   push:
     branches:
-      - main
+      - '**'
     paths:
       - 'shelf_architect/**'
       - '.github/workflows/scala-pipeline.yml'
