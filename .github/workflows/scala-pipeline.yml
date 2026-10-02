@@ -1,0 +1,32 @@
+name: Scala Spark Pipeline (Shelf Architect)
+
+# Trigger this workflow whenever code is pushed to the main branch
+# BUT only if the files inside the shelf_architect folder were changed!
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'shelf_architect/**'
+      - '.github/workflows/scala-pipeline.yml'
+
+jobs:
+  run-spark-job:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🔨 Build Scala/Spark Docker Image
+        # This runs our multi-stage Dockerfile. It will use Maven to compile
+        # the Scala code into a jar, then package it into the Spark image.
+        run: |
+          cd shelf_architect
+          docker build -t shelf-architect-pipeline .
+
+      - name: 🚀 Execute Spark Pipeline
+        # This spins up the container and runs the Spark job!
+        # You will be able to see the output data table right in the GitHub logs.
+        run: |
+          docker run --rm shelf-architect-pipeline
